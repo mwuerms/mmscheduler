@@ -1,13 +1,16 @@
 /**
  * Martin Egli
  * 2015-09-28
- * mmscheduler
+ * scheduler
  * coop scheduler for mcu
  */
 
 // - includes ------------------------------------------------------------------
-#include "mmscheduler.h"
+#include "scheduler.h"
 #include "fifo.h"
+
+#define DEBUG_PRINT_ON
+#include "debug_print.h"
 
 // - typedefs ------------------------------------------------------------------
 
@@ -52,28 +55,26 @@ static inline void evQueue_init(void) {
  *          =false: Error, could not write, queue is full
  */
 static inline uint8_t evQueue_write(event_t *ev) {
-	DEBUG_MESSAGE("evQueue_write: (wr: %d, rd:%d, len: %d, size: %d)",
-				ev_queue.write,
-				ev_queue.read,
-				ev_queue.length,
+	DEBUG_PRINTF_MESSAGE("evQueue_write: (wr: %d, rd:%d, size: %d)",
+				ev_queue.wr,
+				ev_queue.rd,
 				ev_queue.size);
 	// sanity checks
 	if(ev == NULL) {
-		DEBUG_MESSAGE(" ev == NULL\n");
+		DEBUG_PRINTF_MESSAGE(" ev == NULL\n");
 		return false;
 	}
 	if(fifo_try_append(&ev_queue) == false) {
 		// cannot append
-		DEBUG_MESSAGE(" event queue is full\n");
+		DEBUG_PRINTF_MESSAGE(" event queue is full\n");
 		return false;
 	}
 	_memcpy((uint8_t *)&ev_queue_data[ev_queue.wr_proc], (uint8_t *)ev, sizeof(*ev));
 	fifo_finalize_append(&ev_queue);
-	DEBUG_MESSAGE(" event: pid: %d, event: %d, data: %p (wr: %d, rd:%d, len: %d, size: %d)\n",
+	DEBUG_PRINTF_MESSAGE(" event: pid: %d, event: %d, data: %p (wr: %d, rd:%d, size: %d)\n",
 				ev->pid, ev->event, ev->data,
-				ev_queue.write,
-				ev_queue.read,
-				ev_queue.length,
+				ev_queue.wr,
+				ev_queue.rd,
 				ev_queue.size);
 	return true;
 }
@@ -85,29 +86,27 @@ static inline uint8_t evQueue_write(event_t *ev) {
  *          =false: Error, could not read, ev_queue_data is empty
  */
 static inline uint8_t evQueue_read(event_t *ev) {
-	DEBUG_MESSAGE("evQueue_read:  (wr: %d, rd:%d, len: %d, size: %d)",
-			ev_queue.write,
-			ev_queue.read,
-			ev_queue.length,
-			ev_queue.size);
+	DEBUG_PRINTF_MESSAGE("evQueue_read:  (wr: %d, rd:%d, size: %d)",
+				ev_queue.wr,
+				ev_queue.rd,
+				ev_queue.size);
     // sanity checks
 	if(ev == NULL) {
-		DEBUG_MESSAGE(" ev == NULL\n");
+		DEBUG_PRINTF_MESSAGE(" ev == NULL\n");
 		return false;
 	}
 	if(fifo_try_get(&ev_queue) == false) {
 		// cannot append
-		DEBUG_MESSAGE(" event queue is empty\n");
+		DEBUG_PRINTF_MESSAGE(" event queue is empty\n");
 		return false;
 	}
 	_memcpy((uint8_t *)ev, (uint8_t *)&ev_queue_data[ev_queue.rd_proc], sizeof(*ev));
 	fifo_finalize_get(&ev_queue);
-	DEBUG_MESSAGE(" event: pid: %d, event: %d, data: %p (wr: %d, rd:%d, len: %d, size: %d)\n",
-		ev->pid, ev->event, ev->data,
-		ev_queue.write,
-		ev_queue.read,
-		ev_queue.length,
-		ev_queue.size);
+	DEBUG_PRINTF_MESSAGE(" event: pid: %d, event: %d, data: %p (wr: %d, rd:%d, size: %d)\n",
+				ev->pid, ev->event, ev->data,
+				ev_queue.wr,
+				ev_queue.rd,
+				ev_queue.size);
 	return true;
 }
 
@@ -118,17 +117,20 @@ static inline uint8_t evQueue_read(event_t *ev) {
  * @reutn   pointert to process_t   =NULL: could not find process with given pid
  *                                  else: valid pointer
  */
-static process_t *mmscheduler_find_process_by_pid(uint8_t pid) {
+static process_t *scheduler_find_process_by_pid(uint8_t pid) {
     uint8_t n;
+	DEBUG_PRINTF_MESSAGE("scheduler_find_process_by_pid(%d)\n", pid);
     for(n = 0; n < cNB_OF_PROCESSES; n++) {
         if(process_list[n] != NULL) {
             if(process_list[n]->pid == pid) {
                 // found process with same pid
+				DEBUG_PRINTF_MESSAGE(" + found: %p\n", process_list[n]);
                 return process_list[n];
             }
         }
     }
     // no process in list found
+	DEBUG_PRINTF_MESSAGE(" + no process found\n");
     return NULL;
 }
 
@@ -148,10 +150,11 @@ static int8_t process_RemoveFromProcessList(uint8_t pid);*/
  * @return	status 	=true: OK, could execute process
  *					=false: error, could not execute process
  */
-static int8_t mmscheduler_exec_process(uint8_t pid, uint8_t event, void *data) {
+static int8_t scheduler_exec_process(uint8_t pid, uint8_t event, void *data) {
     process_t *p;
+	DEBUG_PRINTF_MESSAGE("scheduler_exec_process(pid: %d, event: %d)\n", pid, event);
     // check if process exists
-    if((p = mmscheduler_find_process_by_pid(pid)) == NULL) {
+    if((p = scheduler_find_process_by_pid(pid)) == NULL) {
         // error, process does not exist
         return false;
     }
@@ -167,7 +170,7 @@ static int8_t mmscheduler_exec_process(uint8_t pid, uint8_t event, void *data) {
         return false;
     }
 
-    DEBUG_MESSAGE("execute process \"%s\" (pid: %d, event: %d, data: %p)\n",
+    DEBUG_PRINTF_MESSAGE("execute process \"%s\" (pid: %d, event: %d, data: %p)\n",
         p->name, p->pid, event, data);
 
 	// OK, execute process
@@ -185,17 +188,16 @@ static int8_t mmscheduler_exec_process(uint8_t pid, uint8_t event, void *data) {
 
 /* - public functions ------------------------------------------------------- */
 
-void mmscheduler_init(void) {
+void scheduler_init(void) {
 	// vars
 	process_count = 0;
 	pid_count = 0;  // 1st time: ++
 	idle_process = NULL;
 	_memset((uint8_t *)process_list, 0, sizeof(process_list));
-
 	evQueue_init();
 }
 
-int8_t mmscheduler_add_process(process_t *p) {
+int8_t scheduler_add_process(process_t *p) {
     uint8_t n;
 
 	// sanity tests
@@ -237,21 +239,21 @@ int8_t mmscheduler_add_process(process_t *p) {
     p->pid = pid_count;
     p->state = cPROCESS_STATE_NONE;
 
-    DEBUG_MESSAGE("process_Add: %s, pid: %d\n",
+    DEBUG_PRINTF_MESSAGE("process_Add: %s, pid: %d\n",
     		p->name,
 			p->pid);
     return true;
 }
 
-int8_t mmscheduler_remove_process(process_t *p) {
+int8_t scheduler_remove_process(process_t *p) {
     // not implemented yet
     return false;
 }
 
-int8_t mmscheduler_start_process(uint8_t pid) {
+int8_t scheduler_start_process(uint8_t pid) {
     process_t *p;
     // check if process exists
-    if((p = mmscheduler_find_process_by_pid(pid)) == NULL) {
+    if((p = scheduler_find_process_by_pid(pid)) == NULL) {
         // error, process does not exist
         return false;
     }
@@ -263,19 +265,19 @@ int8_t mmscheduler_start_process(uint8_t pid) {
 
 	// start process
 	p->state = cPROCESS_STATE_ACTIVE;
-	DEBUG_MESSAGE("process_Start: %s, pid: %d, state: %d\n",
+	DEBUG_PRINTF_MESSAGE("process_Start: %s, pid: %d, state: %d\n",
 			p->name,
 			p->pid,
 			p->state);
-	return mmscheduler_send_event(pid, cEV_START, NULL);
+	return scheduler_send_event(pid, cEV_START, NULL);
 }
 
-int8_t mmscheduler_stop_process(uint8_t pid) {
+int8_t scheduler_stop_process(uint8_t pid) {
 	// not implemented yet
     return false;
 }
 
-int8_t mmscheduler_add_idle_process(process_t *p) {
+int8_t scheduler_add_idle_process(process_t *p) {
 	// sanity tests
 	if(p == NULL) {
 		// error, no process
@@ -290,14 +292,14 @@ int8_t mmscheduler_add_idle_process(process_t *p) {
     idle_process = p;
 	p->pid = cPROCESS_PID_IDLE;
 	p->state = cPROCESS_STATE_NONE; // does not matter for idle_process
-    DEBUG_MESSAGE("process_AddStartIdle: %s, pid: %d\n",
+    DEBUG_PRINTF_MESSAGE("process_AddStartIdle: %s, pid: %d\n",
     			p->name,
 				p->pid);
 
     return true;
 }
 
-int8_t mmscheduler_send_event(uint8_t pid, uint8_t event, void *data) {
+int8_t scheduler_send_event(uint8_t pid, uint8_t event, void *data) {
 	event_t ev;
 	int8_t ret;
 	uint8_t sr;
@@ -311,11 +313,11 @@ int8_t mmscheduler_send_event(uint8_t pid, uint8_t event, void *data) {
 	return ret;
 }
 
-int8_t mmscheduler_is_ev_queue_empty(void) {
+int8_t scheduler_is_ev_queue_empty(void) {
     return fifo_is_empty(&ev_queue);
 }
 
-int8_t mmscheduler_run(void) {
+int8_t scheduler_run(void) {
 	static event_t ev;
 	static int8_t ret;
 
@@ -323,7 +325,7 @@ int8_t mmscheduler_run(void) {
 		// get next event
 		if((ret = evQueue_read(&ev)) == true) {
 			// got a valid event, send it to the process
-			mmscheduler_exec_process(ev.pid, ev.event, ev.data);
+			scheduler_exec_process(ev.pid, ev.event, ev.data);
 		}
 		else {
 			// ev_queue_data is empty, execute the idle task
