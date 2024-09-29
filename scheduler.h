@@ -11,8 +11,8 @@
 /* - includes --------------------------------------------------------------- */
 #include <stdint.h>
 #include <stdbool.h>
-#include "ev_queue.h"
 #include "arch.h"
+#include "events.h"
 
 /* - defines ---------------------------------------------------------------- */
 #define cNB_OF_PROCESSES         16 /// number of processes

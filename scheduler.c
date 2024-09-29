@@ -7,13 +7,11 @@
 
 // - includes ------------------------------------------------------------------
 #include "scheduler.h"
-#include "ev_queue.h"
 #include <string.h>
 
 #define DEBUG_PRINT_ON
 #include "debug_printf.h"
-
-// - typedefs ------------------------------------------------------------------
+#define TEST_RUN
 
 // - private variables ---------------------------------------------------------
 static process_t *idle_process;
@@ -21,7 +19,7 @@ static process_t *process_list[cNB_OF_PROCESSES];	// =NULL: unused, free
 static uint8_t process_count;
 static uint8_t pid_count; /// pid == 0 should not exist
 
-/* - private (static) functions --------------------------------------------- */
+// - private (static) functions-------------------------------------------------
 
 /**
  * find the process in the list by given pid
@@ -99,7 +97,7 @@ static int8_t scheduler_exec_process(uint8_t pid, uint8_t event, void *data) {
 	return true;
 }
 
-/* - public functions ------------------------------------------------------- */
+// - public functions ----------------------------------------------------------
 
 void scheduler_init(void) {
 	// vars
@@ -107,7 +105,7 @@ void scheduler_init(void) {
 	pid_count = 0;  // 1st time: ++
 	idle_process = NULL;
 	memset((uint8_t *)process_list, 0, sizeof(process_list));
-	ev_queue_init();
+	events_init();
 }
 
 int8_t scheduler_add_process(process_t *p) {
@@ -221,13 +219,13 @@ int8_t scheduler_send_event(uint8_t pid, uint8_t event, void *data) {
 	ev.event = event;
 	ev.data = data;
 	lock_interrupt(sr);
-	ret = ev_queue_write(&ev);
+	ret = events_add_to_queue(&ev);
 	restore_interrupt(sr);
 	return ret;
 }
 
 int8_t scheduler_is_ev_queue_empty(void) {
-    return ev_queue_is_empty();
+    return events_is_queue_empty();
 }
 
 int8_t scheduler_run(void) {
@@ -236,7 +234,7 @@ int8_t scheduler_run(void) {
 
 	while(1) {
 		// get next event
-		if((ret = ev_queue_read(&ev)) == true) {
+		if((ret = events_get_from_queue(&ev)) == true) {
 			// got a valid event, send it to the process
 			scheduler_exec_process(ev.pid, ev.event, ev.data);
 		}
@@ -245,11 +243,11 @@ int8_t scheduler_run(void) {
 			if(idle_process != NULL) {
 				ret = idle_process->process(0, NULL);
 			}
-//#ifdef TEST_RUN
+#ifdef TEST_RUN
 			if(ret == 0) {
 				return (-1);
 			}
-//#endif
+#endif
 		}
 	}
 	return false;

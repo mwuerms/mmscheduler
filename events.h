@@ -1,12 +1,12 @@
 /**
  * Martin Egli
- * 2015-09-29
- * event queue
+ * 2024-09-29
+ * events, queue and timing events (are sent later)
  * coop scheduler for mcu
  */
 
-#ifndef _MM_EV_QUEUE_H_
-#define _MM_EV_QUEUE_H_
+#ifndef _EVENTS_H_
+#define _EVENTS_H_
 
 //- includes -------------------------------------------------------------------
 #include <stdint.h>
@@ -30,9 +30,9 @@ typedef struct {
 // - public functions ----------------------------------------------------------
 
 /**
- * initialize the event queue
+ * initialize the events
  */
-void ev_queue_init(void);
+void events_init(void);
 
 /**
  * write an event to the event queue
@@ -40,7 +40,7 @@ void ev_queue_init(void);
  * @return  =true: OK, writing event successfull
  *          =false: Error, could not write, queue is full
  */
-uint8_t ev_queue_write(event_t *ev);
+uint8_t events_add_to_queue(event_t *ev);
 
 /**
  * read an event from the event queue
@@ -48,14 +48,41 @@ uint8_t ev_queue_write(event_t *ev);
  * @return  =true: OK, reading event successfull, event is valid
  *          =false: Error, could not read, ev_queue_data is empty
  */
-uint8_t ev_queue_read(event_t *ev);
+uint8_t events_get_from_queue(event_t *ev);
 
 /**
  * check if event queue is empty
  * @return  =true: event queue is empty
  *          =false: event queue is NOT empty
  */
-uint8_t ev_queue_is_empty(void);
+uint8_t events_is_queue_empty(void);
 
+// - timing events -------------------------------------------------------------
 
-#endif // _MM_EV_QUEUE_H_
+/**
+ * start the event timer
+ * @param   periode   of event timer
+ * @return  =true: could start event timer
+ *          =false: could not start event timer
+ */
+int8_t events_start_timer(uint16_t periode);
+
+/**
+ * stop the event timer
+ * @return  =true: could stop event timer
+ *          =false: could not stop event timer
+ */
+int8_t events_stop_timer(void);
+
+/**
+ * add a single event to the event timer
+ * @param   timeout after which to send the event
+ * @param	pid		process identifier
+ * @param	event	event for the process to execute
+ * @param	data	additional data to process (if unused = NULL)
+ * @return	status 	=true: OK, could add event
+ *					=false: error, could not add event
+ */
+int8_t events_add_single_timer_event(uint16_t timeout, uint8_t pid, uint8_t event, void *data);
+
+#endif // _EVENTS_H_
