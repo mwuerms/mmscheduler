@@ -11,11 +11,11 @@
 /* - includes --------------------------------------------------------------- */
 #include <stdint.h>
 #include <stdbool.h>
+#include "ev_queue.h"
 #include "arch.h"
 
 /* - defines ---------------------------------------------------------------- */
 #define cNB_OF_PROCESSES         16 /// number of processes
-#define cNB_OF_EVENTS_IN_QUEUE   32 /// number of events in event queue
 
 /* - typedefs --------------------------------------------------------------- */
 typedef int8_t (*process_func_t) (uint8_t event, void *data);
@@ -33,17 +33,6 @@ typedef struct {
 #define cPROCESS_STATE_NONE     0
 #define cPROCESS_STATE_ACTIVE   1
 #define cPROCESS_STATE_RUNNING  2
-
-typedef struct {
-  void * data;
-  uint8_t pid;
-  uint8_t event;
-} event_t;
-// events from 0 ... 127 are for user purpose
-// predefined events
-#define cEV_START   128
-#define cEV_STOP    129
-#define cEV_POLL    130
 
 // - public functions ----------------------------------------------------------
 

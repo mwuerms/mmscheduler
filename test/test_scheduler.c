@@ -42,7 +42,7 @@ static int8_t test01_process (uint8_t event, void *data) {
         printf(" + event: %d, send event to test02_process\n", event);
         scheduler_send_event(test02_pid, 2, NULL);
     }
-    if(event == cEV_START) {
+    if(event == EV_START) {
         printf(" + START test01_process\n");
     }
     return 1;
@@ -57,7 +57,7 @@ static int8_t test02_process (uint8_t event, void *data) {
     if(event == 3) {
         printf(" + event: %d, TESTTESTTEST!\n", event);
     }
-    if(event == cEV_START) {
+    if(event == EV_START) {
         printf(" + START test02_process\n");
     }
     return 1;
