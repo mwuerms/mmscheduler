@@ -7,14 +7,6 @@
 
 #include "fifo.h"
 
-// - private functions ---------------------------------------------------------
-uint16_t fifo_inc(uint16_t pos, uint16_t size) {
-    pos++;
-    if(pos >= size)
-        return 0;
-    return pos;
-}
-
 // - public functions ----------------------------------------------------------
 uint16_t fifo_init(fifo_t *f, void *data, uint16_t size) {
     if(f == NULL) {
@@ -48,7 +40,7 @@ uint16_t fifo_is_empty(fifo_t *f) {
         // error, invalid pointer
         return false;
     }
-    rd_next = fifo_inc(f->rd, f->size);
+    rd_next = fifo_inc_pos(f->rd, f->size);
     if(rd_next == f->wr) {
         // is empty
         return true;
@@ -65,7 +57,7 @@ uint16_t fifo_try_append(fifo_t *f) {
         // error, is full
         return false;
     }
-    f->wr_proc = fifo_inc(f->wr, f->size);
+    f->wr_proc = fifo_inc_pos(f->wr, f->size);
     return true;
 }
 
@@ -87,7 +79,7 @@ uint16_t fifo_try_get(fifo_t *f) {
         // error, is empty
         return false;
     }
-    f->rd_proc = fifo_inc(f->rd, f->size);
+    f->rd_proc = fifo_inc_pos(f->rd, f->size);
     return true;
 }
 
@@ -100,3 +92,16 @@ uint16_t fifo_finalize_get(fifo_t *f) {
     return true;
 }
 
+uint16_t fifo_inc_pos(uint16_t pos, uint16_t size) {
+    pos++;
+    if(pos >= size)
+        return 0;
+    return pos;
+}
+
+uint16_t fifo_dec_pos(uint16_t pos, uint16_t size) {
+    pos--;
+    if(pos >= size)
+        return size-1;
+    return pos;
+}
