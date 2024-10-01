@@ -214,19 +214,32 @@ int8_t scheduler_add_idle_process(process_t *p) {
 int8_t scheduler_send_event(uint8_t pid, uint8_t event, void *data) {
 	event_t ev;
 	int8_t ret;
+
+	ev.pid = pid;
+	ev.event = event;
+	ev.data = data;
+	ret = events_add_to_main_fifo(&ev);
+	return ret;
+}
+
+int8_t scheduler_is_ev_main_fifo_empty(void) {
+    return events_is_main_fifo_empty();
+}
+
+int8_t scheduler_add_timer_event(uint16_t timeout, uint8_t pid, uint8_t event, void *data) {
+	event_t ev;
+	int8_t ret;
 	uint8_t sr;
 
 	ev.pid = pid;
 	ev.event = event;
 	ev.data = data;
 	lock_interrupt(sr);
-	ret = events_add_to_queue(&ev);
+	ret = events_add_to_main_fifo(&ev);
 	restore_interrupt(sr);
 	return ret;
-}
 
-int8_t scheduler_is_ev_queue_empty(void) {
-    return events_is_queue_empty();
+	int8_t events_add_single_timer_event(uint16_t timeout, uint8_t pid, uint8_t event, void *data);
 }
 
 int8_t scheduler_run(void) {
@@ -235,12 +248,12 @@ int8_t scheduler_run(void) {
 
 	while(1) {
 		// get next event
-		if((ret = events_get_from_queue(&ev)) == true) {
+		if((ret = events_get_from_main_fifo(&ev)) == true) {
 			// got a valid event, send it to the process
 			scheduler_exec_process(ev.pid, ev.event, ev.data);
 		}
 		else {
-			// ev_queue_data is empty, execute the idle task
+			// ev_main_fifo_data is empty, execute the idle task
 			if(idle_process != NULL) {
 				ret = idle_process->process(0, NULL);
 			}

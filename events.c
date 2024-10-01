@@ -1,7 +1,7 @@
 /**
  * Martin Egli
  * 2024-09-29
- * events, queue and timing events (are sent later)
+ * events, main_fifo and timing events (are sent later)
  * coop scheduler for mcu
  */
 
@@ -17,7 +17,9 @@
 #include "fifo.h"
 
 // - private variables ---------------------------------------------------------
-// - event queue ---------------------------------------------------------------
+// - event main_fifo ---------------------------------------------------------------
+#define EVENTS_MAIN_FIFO_SIZE (8) /// number of events in event main_fifo
+
 static fifo_t events_main_fifo;
 static event_t events_main_fifo_data[EVENTS_MAIN_FIFO_SIZE];
 
@@ -26,18 +28,18 @@ static event_t events_main_fifo_data[EVENTS_MAIN_FIFO_SIZE];
 typedef struct {
     uint32_t compare;
     event_t  event;
-} ev_timer_event_t;
+} ev_tim_event_t;
 
 static fifo_t events_timer_fifo;
-static ev_timer_event_t events_timer_fifo_data[EV_TIMER_NB_EVENTS];
+static ev_tim_event_t events_timer_fifo_data[EV_TIMER_NB_EVENTS];
 
 uint8_t *ev_timer_pid;    /// point to pid of event timer
 static process_t ev_timer_proc;
 static char ev_timer_name[] = "EV_TIMER_HAL";
 // - private function ----------------------------------------------------------
-void events_print_event_queue(void) {
+void events_print_event_main_fifo(void) {
 	uint16_t pos;
-	DEBUG_PRINTF_MESSAGE("current events in queue\n");
+	DEBUG_PRINTF_MESSAGE("current events in main_fifo\n");
 	DEBUG_PRINTF_MESSAGE(" wr: %d, rd:%d, size: %d\n",
 				events_main_fifo.wr,
 				events_main_fifo.rd,
@@ -136,7 +138,7 @@ static int8_t ev_timer_hal_process(uint8_t event, void *data) {
 
 // - public functions ----------------------------------------------------------
 void events_init(void) {
-	// event queue
+	// event main_fifo
 	fifo_init(&events_main_fifo, (void *)events_main_fifo_data, EVENTS_MAIN_FIFO_SIZE);
 	memset((uint8_t *)events_main_fifo_data, 0, sizeof(events_main_fifo_data));
 	// timing events
@@ -152,7 +154,8 @@ void events_init(void) {
     scheduler_add_process(&ev_timer_proc);
 }
 
-uint8_t events_add_to_queue(event_t *ev) {
+uint8_t events_add_to_main_fifo(event_t *ev) {
+	uint16_t sr;
 	DEBUG_PRINTF_MESSAGE("events_main_fifo_write: (wr: %d, rd:%d, size: %d)",
 				events_main_fifo.wr,
 				events_main_fifo.rd,
@@ -162,9 +165,11 @@ uint8_t events_add_to_queue(event_t *ev) {
 		DEBUG_PRINTF_MESSAGE(" ev == NULL\n");
 		return false;
 	}
+	lock_interrupt(sr);
 	if(fifo_try_append(&events_main_fifo) == false) {
 		// cannot append
-		DEBUG_PRINTF_MESSAGE(" event queue is full\n");
+		DEBUG_PRINTF_MESSAGE(" event main_fifo is full\n");
+		restore_interrupt(sr);
 		return false;
 	}
 	memcpy((uint8_t *)&events_main_fifo_data[events_main_fifo.wr_proc], (uint8_t *)ev, sizeof(*ev));
@@ -174,11 +179,14 @@ uint8_t events_add_to_queue(event_t *ev) {
 				events_main_fifo.wr,
 				events_main_fifo.rd,
 				events_main_fifo.size);
-	events_print_event_queue();
+	events_print_event_main_fifo();
+
+	restore_interrupt(sr);
 	return true;
 }
 
-uint8_t events_get_from_queue(event_t *ev) {
+uint8_t events_get_from_main_fifo(event_t *ev) {
+	uint16_t sr;
 	DEBUG_PRINTF_MESSAGE("events_main_fifo_read:  (wr: %d, rd:%d, size: %d)",
 				events_main_fifo.wr,
 				events_main_fifo.rd,
@@ -188,9 +196,10 @@ uint8_t events_get_from_queue(event_t *ev) {
 		DEBUG_PRINTF_MESSAGE(" ev == NULL\n");
 		return false;
 	}
+	lock_interrupt(sr); restore_interrupt(sr);
 	if(fifo_try_get(&events_main_fifo) == false) {
 		// cannot append
-		DEBUG_PRINTF_MESSAGE(" event queue is empty\n");
+		DEBUG_PRINTF_MESSAGE(" event main_fifo is empty\n");
 		return false;
 	}
 	memcpy((uint8_t *)ev, (uint8_t *)&events_main_fifo_data[events_main_fifo.rd_proc], sizeof(*ev));
@@ -200,10 +209,12 @@ uint8_t events_get_from_queue(event_t *ev) {
 				events_main_fifo.wr,
 				events_main_fifo.rd,
 				events_main_fifo.size);
+
+	restore_interrupt(sr);
 	return true;
 }
 
-uint8_t events_is_queue_empty(void) {
+uint8_t events_is_main_fifo_empty(void) {
     return fifo_is_empty(&events_main_fifo);
 }
 

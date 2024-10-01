@@ -155,11 +155,11 @@ int8_t test03(void) {
 int8_t test04(void) {
     uint8_t test_nr, p, ev;
     int8_t res, res_should;
-    printf(" + test03: scheduler_send_event()\n");
+    printf(" + test04: scheduler_send_event()\n");
 
     p = 1;
     ev = 10;
-    for(test_nr = 1;test_nr < EVENTS_MAIN_FIFO_SIZE-1;test_nr++) {
+    for(test_nr = 1;test_nr < 8-1;test_nr++) {
         ev++;
         printf("   %02d: scheduler_send_event(%d, 0x%02X)\n", test_nr, p, ev);
         res_should = true;
@@ -183,6 +183,39 @@ int8_t test04(void) {
 
     return TEST_SUCCESSFUL;
 }
+
+int8_t test05(void) {
+    uint8_t test_nr, p, ev;
+    int8_t res, res_should;
+    printf(" + test05: scheduler_send_event()\n");
+
+    p = 1;
+    ev = 10;
+    for(test_nr = 1;test_nr < 8-1;test_nr++) {
+        ev++;
+        printf("   %02d: scheduler_send_event(%d, 0x%02X)\n", test_nr, p, ev);
+        res_should = true;
+        res = scheduler_send_event(p, ev, NULL);
+        printf("       should: %s\n", get_bool_string(res_should));
+        printf("       result: %s\n", get_bool_string(res));
+        if(res != res_should) {
+            return TEST_FAILED;
+        }
+    }
+    // from for test_nr++;
+    ev++;
+    printf("   %02d: scheduler_send_event(%d, 0x%02X), should be full now\n", test_nr, p, ev);
+    res_should = false;
+    res = scheduler_send_event(p, ev, NULL);
+    printf("       should: %s\n", get_bool_string(res_should));
+    printf("       result: %s\n", get_bool_string(res));
+    if(res != res_should) {
+        return TEST_FAILED;
+    }
+
+    return TEST_SUCCESSFUL;
+}
+
 int main(void) {
     printf("testing scheduler functions\n\n");
     test_eval_result(test01());
@@ -190,6 +223,7 @@ int main(void) {
     test_eval_result(test03()); // run()
     test_eval_result(test04());
     test_eval_result(test03()); // run()
+    test_eval_result(test05());
 
     printf("\nall tests successfully done\n");
     return 0;

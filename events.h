@@ -1,7 +1,7 @@
 /**
  * Martin Egli
  * 2024-09-29
- * events, queue and timing events (are sent later)
+ * events, main_fifo and timing events (are sent later)
  * coop scheduler for mcu
  */
 
@@ -15,12 +15,13 @@
 #include "fifo.h"
 
 //- typedefs -------------------------------------------------------------------
-#define EVENTS_MAIN_FIFO_SIZE (8) /// number of events in event queue
 typedef struct {
   void * data;
   uint8_t pid;
   uint8_t event;
 } event_t;
+
+// - events --------------------------------------------------------------------
 // events from 0 ... 127 are for user purpose
 // predefined events
 #define EV_START   128
@@ -35,27 +36,27 @@ typedef struct {
 void events_init(void);
 
 /**
- * write an event to the event queue
- * @param   event   pointer to event to put into ev_queue_data
+ * write an event to the event main_fifo
+ * @param   event   pointer to event to put into ev_main_fifo_data
  * @return  =true: OK, writing event successfull
- *          =false: Error, could not write, queue is full
+ *          =false: Error, could not write, main_fifo is full
  */
-uint8_t events_add_to_queue(event_t *ev);
+uint8_t events_add_to_main_fifo(event_t *ev);
 
 /**
- * read an event from the event queue
- * @param   event   pointer to event to read from ev_queue_data
+ * read an event from the event main_fifo
+ * @param   event   pointer to event to read from ev_main_fifo_data
  * @return  =true: OK, reading event successfull, event is valid
- *          =false: Error, could not read, ev_queue_data is empty
+ *          =false: Error, could not read, ev_main_fifo_data is empty
  */
-uint8_t events_get_from_queue(event_t *ev);
+uint8_t events_get_from_main_fifo(event_t *ev);
 
 /**
- * check if event queue is empty
- * @return  =true: event queue is empty
- *          =false: event queue is NOT empty
+ * check if event main_fifo is empty
+ * @return  =true: event main_fifo is empty
+ *          =false: event main_fifo is NOT empty
  */
-uint8_t events_is_queue_empty(void);
+uint8_t events_is_main_fifo_empty(void);
 
 // - timing events -------------------------------------------------------------
 

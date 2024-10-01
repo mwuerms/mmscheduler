@@ -86,16 +86,16 @@ int8_t scheduler_add_idle_process(process_t *p);
  * @param	pid		process identifier
  * @param	event	event for the process to execute
  * @param	data	additional data to process (if unused = NULL)
- * @return	status 	=true: OK, could add event to queue
- *					=false: error, could not add event to queue
+ * @return	status 	=true: OK, could add event to main_fifo
+ *					=false: error, could not add event to main_fifo
  */
 int8_t scheduler_send_event(uint8_t pid, uint8_t event, void *data);
 
 /**
- * check if event queue is empty
+ * check if event main_fifo is empty
  * @return  =true: fifo is indeed empty, =false: fifo is NOT empty
  */
-int8_t scheduler_is_ev_queue_empty(void);
+int8_t scheduler_is_ev_main_fifo_empty(void);
 
 /**
  * run the process scheduler
