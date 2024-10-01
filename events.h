@@ -78,12 +78,10 @@ int8_t events_stop_timer(void);
 /**
  * add a single event to the event timer
  * @param   timeout after which to send the event
- * @param	pid		process identifier
- * @param	event	event for the process to execute
- * @param	data	additional data to process (if unused = NULL)
+ * @param   event   pointer to event to put into ev_main_fifo_data
  * @return	status 	=true: OK, could add event
  *					=false: error, could not add event
  */
-int8_t events_add_single_timer_event(uint16_t timeout, uint8_t pid, uint8_t event, void *data);
+int8_t events_add_single_timer_event(uint16_t timeout, event_t *ev);
 
 #endif // _EVENTS_H_

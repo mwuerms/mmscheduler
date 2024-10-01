@@ -222,7 +222,7 @@ int8_t scheduler_send_event(uint8_t pid, uint8_t event, void *data) {
 	return ret;
 }
 
-int8_t scheduler_is_ev_main_fifo_empty(void) {
+int8_t scheduler_is_evvent_main_fifo_empty(void) {
     return events_is_main_fifo_empty();
 }
 
@@ -235,11 +235,9 @@ int8_t scheduler_add_timer_event(uint16_t timeout, uint8_t pid, uint8_t event, v
 	ev.event = event;
 	ev.data = data;
 	lock_interrupt(sr);
-	ret = events_add_to_main_fifo(&ev);
+	ret = events_add_single_timer_event(timeout, &ev);
 	restore_interrupt(sr);
 	return ret;
-
-	int8_t events_add_single_timer_event(uint16_t timeout, uint8_t pid, uint8_t event, void *data);
 }
 
 int8_t scheduler_run(void) {

@@ -44,7 +44,7 @@ void events_print_event_main_fifo(void) {
 				events_main_fifo.wr,
 				events_main_fifo.rd,
 				events_main_fifo.size);
-	for(pos = events_main_fifo.rd; pos != events_main_fifo.wr; pos = fifo_next_pos(pos, events_main_fifo.size)) {
+	for(pos = fifo_next_pos(events_main_fifo.rd, events_main_fifo.size); pos != events_main_fifo.wr; pos = fifo_next_pos(pos, events_main_fifo.size)) {
 		DEBUG_PRINTF_MESSAGE(" pos: %d, pid: %d, event: 0x%02X\n", 
 				pos, 
 				events_main_fifo_data[pos].pid, 
@@ -59,10 +59,10 @@ void events_print_timer_events(void) {
 	uint16_t pos;
 	DEBUG_PRINTF_MESSAGE("current timer events()\n");
 	DEBUG_PRINTF_MESSAGE(" wr: %d, rd:%d, size: %d\n",
-				events_main_fifo.wr,
-				events_main_fifo.rd,
-				events_main_fifo.size);
-	for(pos = events_timer_fifo.rd; pos != events_timer_fifo.wr; pos = fifo_next_pos(pos, events_timer_fifo.size)) {
+				events_timer_fifo.wr,
+				events_timer_fifo.rd,
+				events_timer_fifo.size);
+	for(pos = fifo_next_pos(events_timer_fifo.rd, events_main_fifo.size); pos != events_timer_fifo.wr; pos = fifo_next_pos(pos, events_timer_fifo.size)) {
 		DEBUG_PRINTF_MESSAGE(" pos: %d, compare: %d, pid: %d, event: 0x%02X\n", 
 				pos, 
 				events_timer_fifo_data[pos].compare, 
@@ -122,7 +122,7 @@ static int8_t events_compare_times(uint32_t t1, uint32_t t2) {
  * @param	from	start position to move from
  * @param	to		end position
  */
-static void events_move_elements_in_timer_fifo_1pos_right(uint16_t from, uint16_t to) {
+static void events_move_elements_in_timer_fifo_right(uint16_t from, uint16_t to) {
 	uint16_t pos, pos1;
 	for(pos  = from;pos != to;pos  = pos1) {
 		pos1 = fifo_prev_pos(pos, events_timer_fifo.size);
@@ -142,15 +142,14 @@ void events_init(void) {
 	fifo_init(&events_main_fifo, (void *)events_main_fifo_data, EVENTS_MAIN_FIFO_SIZE);
 	memset((uint8_t *)events_main_fifo_data, 0, sizeof(events_main_fifo_data));
 	// timing events
-	// vars
-    ev_timer_pid = &ev_timer_proc.pid;
-    ev_timer_proc.name = ev_timer_name;
-    ev_timer_proc.process = ev_timer_hal_process;
     memset(&ev_timer_proc, 0, sizeof(ev_timer_proc));
     memset(&events_timer_fifo_data, 0, sizeof(events_timer_fifo_data));
     fifo_init(&events_timer_fifo, events_timer_fifo_data, EV_TIMER_NB_EVENTS);
 
     ev_timer_CNT = 0;
+	ev_timer_pid = &ev_timer_proc.pid;
+    ev_timer_proc.name = ev_timer_name;
+    ev_timer_proc.process = ev_timer_hal_process;
     scheduler_add_process(&ev_timer_proc);
 }
 
@@ -229,12 +228,16 @@ int8_t events_stop_timer(void) {
     return scheduler_stop_process(ev_timer_proc.pid);
 }
 
-int8_t events_add_single_timer_event(uint16_t timeout, uint8_t pid, uint8_t event, void *data)  {
+int8_t events_add_single_timer_event(uint16_t timeout, event_t *ev)  {
 	uint32_t new_compare, now = 0;
     uint16_t sr, pos;
 
-    DEBUG_PRINTF_MESSAGE("events_add_single_timer_event(%d, %d, %d)\n", timeout, pid, event);
     // sanity check
+	if(ev == NULL) {
+		DEBUG_PRINTF_MESSAGE(" ev == NULL\n");
+		return false;
+	}
+	DEBUG_PRINTF_MESSAGE("events_add_single_timer_event(%d, %d, %d)\n", timeout, ev->pid, ev->event);
     if(timeout == 0) {
         // invalid timeout
         DEBUG_PRINTF_MESSAGE(" timeout = 0, skip\n");
@@ -242,6 +245,9 @@ int8_t events_add_single_timer_event(uint16_t timeout, uint8_t pid, uint8_t even
     }
     
     lock_interrupt(sr);
+	// calc compare for this event
+    now = ev_timer_get_current_time_isr();
+    new_compare = now + timeout;
 
     // get next free element
     if(fifo_try_append(&events_timer_fifo) == false) {
@@ -250,45 +256,44 @@ int8_t events_add_single_timer_event(uint16_t timeout, uint8_t pid, uint8_t even
         restore_interrupt(sr);
 		return false;
 	}
-    // calc compare for this event
-    now = ev_timer_get_current_time_isr();
-    new_compare = now + timeout;
     // find position to sort this event in
 	if(fifo_is_empty(&events_timer_fifo) == true) {
 		// fifo is empty, so save event
 		DEBUG_PRINTF_MESSAGE(" events_timer_fifo fifo is empty, place up front, done\n");
 		events_timer_fifo_data[events_timer_fifo.wr_proc].compare = new_compare;
-		events_timer_fifo_data[events_timer_fifo.wr_proc].event.data = data;
-		events_timer_fifo_data[events_timer_fifo.wr_proc].event.pid  = pid;
-		events_timer_fifo_data[events_timer_fifo.wr_proc].event.event  = event;
+		events_timer_fifo_data[events_timer_fifo.wr_proc].event.data = ev->data;
+		events_timer_fifo_data[events_timer_fifo.wr_proc].event.pid  = ev->pid;
+		events_timer_fifo_data[events_timer_fifo.wr_proc].event.event  = ev->event;
 	}
 	else {
 		/* iterate through events_timer_fifo to find appropriate place fro new_compare
 		 * note: use wr_proc here, because fifo_try_append() was called to check if there is space left
 		 * fifo_finalize_append() will get called later
 		 */
-		for(pos = events_timer_fifo.rd; pos != events_timer_fifo.wr_proc; pos = fifo_next_pos(pos, 1)) {
+		DEBUG_PRINTF_MESSAGE(" sort timer event to correct position\n");
+		for(pos = fifo_next_pos(events_timer_fifo.rd, events_main_fifo.size); pos != events_timer_fifo.wr_proc; pos = fifo_next_pos(pos, events_timer_fifo.size)) {
+			DEBUG_PRINTF_MESSAGE(" pos: %d\n", pos);
 			/* check compare values, current_compare(@pos) vs. new_compare
 			* < : current_compare(@pos) will be used 1st, nothing to do
 			* ==: current_compare(@pos) will also be used 1st, nothing to do
 			* > : new_compare will be used 1st, so make space at pos by copy pos to pos+1
 			*/
-			if(events_compare_times(events_timer_fifo_data[pos].compare, new_compare) == 1) {
+			DEBUG_PRINTF_MESSAGE(" current_compare(@pos): %d, new_compare: %d\n", events_timer_fifo_data[pos].compare, new_compare);
+			if(events_compare_times(events_timer_fifo_data[pos].compare, new_compare) == -1) {
 				// current current_compare(@pos) > new_compare
 				// make space for new_compare at pos
-				events_move_elements_in_timer_fifo_1pos_right(pos, events_timer_fifo.wr_proc);
+				events_move_elements_in_timer_fifo_right(pos, events_timer_fifo.wr_proc);
 				// place new_compare here at pos
 				events_timer_fifo_data[pos].compare = new_compare;
-				events_timer_fifo_data[pos].event.data = data;
-				events_timer_fifo_data[pos].event.pid  = pid;
-				events_timer_fifo_data[pos].event.event  = event;
+				events_timer_fifo_data[pos].event.data = ev->data;
+				events_timer_fifo_data[pos].event.pid  = ev->pid;
+				events_timer_fifo_data[pos].event.event  = ev->event;
 			}
 		}
 	}
-
     fifo_finalize_append(&events_timer_fifo);
 	DEBUG_PRINTF_MESSAGE(" event: pid: %d, event: %d, data: %p (wr: %d, rd:%d, size: %d)\n",
-				pid, event, data,
+				ev->pid, ev->event, ev->data,
 				events_timer_fifo.wr,
 				events_timer_fifo.rd,
 				events_timer_fifo.size);

@@ -92,10 +92,21 @@ int8_t scheduler_add_idle_process(process_t *p);
 int8_t scheduler_send_event(uint8_t pid, uint8_t event, void *data);
 
 /**
+ * send an event timer to a process given by its PID
+ * @param timeout after which to send
+ * @param	pid		process identifier
+ * @param	event	event for the process to execute
+ * @param	data	additional data to process (if unused = NULL)
+ * @return	status 	=true: OK, could add event to main_fifo
+ *					=false: error, could not add event to main_fifo
+ */
+int8_t scheduler_add_timer_event(uint16_t timeout, uint8_t pid, uint8_t event, void *data);
+
+/**
  * check if event main_fifo is empty
  * @return  =true: fifo is indeed empty, =false: fifo is NOT empty
  */
-int8_t scheduler_is_ev_main_fifo_empty(void);
+int8_t scheduler_is_event_main_fifo_empty(void);
 
 /**
  * run the process scheduler

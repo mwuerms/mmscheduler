@@ -185,17 +185,30 @@ int8_t test04(void) {
 }
 
 int8_t test05(void) {
+    uint16_t tout;
     uint8_t test_nr, p, ev;
     int8_t res, res_should;
-    printf(" + test05: scheduler_send_event()\n");
+    printf("\n\n + test05: scheduler_send_event()\n");
 
+    test_nr = 0;
+    tout = 0;
     p = 1;
-    ev = 10;
+    ev = 30;
+    printf("   %02d: scheduler_add_timer_event(%d, %d, 0x%02X), should fail, (timeout == %d)\n", test_nr, tout, p, ev, tout);
+    res_should = false;
+    res = scheduler_add_timer_event(tout, p, ev, NULL);
+    printf("       should: %s\n", get_bool_string(res_should));
+    printf("       result: %s\n", get_bool_string(res));
+    if(res != res_should) {
+        return TEST_FAILED;
+    }
+    tout = 1000;
     for(test_nr = 1;test_nr < 8-1;test_nr++) {
         ev++;
-        printf("   %02d: scheduler_send_event(%d, 0x%02X)\n", test_nr, p, ev);
+        tout++;
+        printf("   %02d: scheduler_add_timer_event(%d, %d, 0x%02X)\n", test_nr, tout, p, ev);
         res_should = true;
-        res = scheduler_send_event(p, ev, NULL);
+        res = scheduler_add_timer_event(tout, p, ev, NULL);
         printf("       should: %s\n", get_bool_string(res_should));
         printf("       result: %s\n", get_bool_string(res));
         if(res != res_should) {
@@ -204,9 +217,10 @@ int8_t test05(void) {
     }
     // from for test_nr++;
     ev++;
-    printf("   %02d: scheduler_send_event(%d, 0x%02X), should be full now\n", test_nr, p, ev);
+    tout++;
+    printf("   %02d: scheduler_add_timer_event(%d, %d, 0x%02X), should be full\n", test_nr, tout, p, ev);
     res_should = false;
-    res = scheduler_send_event(p, ev, NULL);
+    res = scheduler_add_timer_event(tout, p, ev, NULL);
     printf("       should: %s\n", get_bool_string(res_should));
     printf("       result: %s\n", get_bool_string(res));
     if(res != res_should) {
