@@ -75,28 +75,26 @@ uint16_t fifo_finalize_append(fifo_t *f);
 uint16_t fifo_try_get(fifo_t *f);
 
 /**
- * finalize get from fifo
+ * finalize get fromfifo
  * @param   f       pointer to fifo_t
  * @return  =true: success, =false: error, invalid pointer
  */
 uint16_t fifo_finalize_get(fifo_t *f);
 
 /**
- * to go forewards through fifo
- * increment pos in range 0 ... size-1
- * @param   pos     to increment
- * @param   size    max = size -1
- * @return  next pos in range 0 ... size-1
+ * calc the next position index (pos)
+ * @param   pos     current position
+ * @param   size    to calc maximum
+ * @return  next position
  */
-uint16_t fifo_inc_pos(uint16_t pos, uint16_t size);
+uint16_t fifo_next_pos(uint16_t pos, uint16_t size);
 
 /**
- * to go backwards through fifo
- * decrement pos in range size-1 ... 0
- * @param   pos     to decrement
- * @param   size    max = size -1
- * @return  next pos in range size-1 ... 0
+ * calc the previous position index (pos)
+ * @param   pos     current position
+ * @param   size    to calc maximum
+ * @return  previous position
  */
-uint16_t fifo_dec_pos(uint16_t pos, uint16_t size);
+uint16_t fifo_prev_pos(uint16_t pos, uint16_t size);
 
 #endif // _MM_FIFO_H_

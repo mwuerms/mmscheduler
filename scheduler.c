@@ -6,12 +6,13 @@
  */
 
 // - includes ------------------------------------------------------------------
+#define TEST_RUN
+
+#define DEBUG_PRINTF_ON
+#include "debug_printf.h"
+
 #include "scheduler.h"
 #include <string.h>
-
-#define DEBUG_PRINT_ON
-#include "debug_printf.h"
-#define TEST_RUN
 
 // - private variables ---------------------------------------------------------
 static process_t *idle_process;

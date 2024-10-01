@@ -6,6 +6,9 @@
  */
 
 // - includes ------------------------------------------------------------------
+#define DEBUG_PRINTF_ON
+#include "debug_printf.h"
+
 #include <string.h>
 #include <stdint.h>
 #include <stdbool.h>
@@ -13,34 +16,62 @@
 #include "scheduler.h"
 #include "fifo.h"
 
-#define DEBUG_PRINT_ON
-#include "debug_printf.h"
-
 // - private variables ---------------------------------------------------------
 // - event queue ---------------------------------------------------------------
-static fifo_t ev_queue;
-static event_t ev_queue_data[cNB_OF_EVENTS_IN_QUEUE];
+static fifo_t events_main_fifo;
+static event_t events_main_fifo_data[EVENTS_MAIN_FIFO_SIZE];
 
 // - timer events --------------------------------------------------------------
-#define EV_TIMER_NB_EVENTS  (16)
-
+#define EV_TIMER_NB_EVENTS  (8)
 typedef struct {
     uint32_t compare;
     event_t  event;
 } ev_timer_event_t;
 
-uint8_t *ev_timer_pid;    /// point to pid of event timer
-static process_t ev_timer_proc;
-static char ev_timer_name[] = "EV_TIMER_HAL";
 static fifo_t events_timer_fifo;
 static ev_timer_event_t events_timer_fifo_data[EV_TIMER_NB_EVENTS];
 
+uint8_t *ev_timer_pid;    /// point to pid of event timer
+static process_t ev_timer_proc;
+static char ev_timer_name[] = "EV_TIMER_HAL";
 // - private function ----------------------------------------------------------
 void events_print_event_queue(void) {
+	uint16_t pos;
 	DEBUG_PRINTF_MESSAGE("current events in queue\n");
+	DEBUG_PRINTF_MESSAGE(" wr: %d, rd:%d, size: %d\n",
+				events_main_fifo.wr,
+				events_main_fifo.rd,
+				events_main_fifo.size);
+	for(pos = events_main_fifo.rd; pos != events_main_fifo.wr; pos = fifo_next_pos(pos, events_main_fifo.size)) {
+		DEBUG_PRINTF_MESSAGE(" pos: %d, pid: %d, event: 0x%02X\n", 
+				pos, 
+				events_main_fifo_data[pos].pid, 
+				events_main_fifo_data[pos].event);
+	}
+	DEBUG_PRINTF_MESSAGE(" pos: %d, pid: %d, event: 0x%02X\n", 
+				pos, 
+				events_main_fifo_data[pos].pid, 
+				events_main_fifo_data[pos].event);
 }
 void events_print_timer_events(void) {
-	DEBUG_PRINTF_MESSAGE("current timer events\n");
+	uint16_t pos;
+	DEBUG_PRINTF_MESSAGE("current timer events()\n");
+	DEBUG_PRINTF_MESSAGE(" wr: %d, rd:%d, size: %d\n",
+				events_main_fifo.wr,
+				events_main_fifo.rd,
+				events_main_fifo.size);
+	for(pos = events_timer_fifo.rd; pos != events_timer_fifo.wr; pos = fifo_next_pos(pos, events_timer_fifo.size)) {
+		DEBUG_PRINTF_MESSAGE(" pos: %d, compare: %d, pid: %d, event: 0x%02X\n", 
+				pos, 
+				events_timer_fifo_data[pos].compare, 
+				events_timer_fifo_data[pos].event.pid, 
+				events_timer_fifo_data[pos].event.event);
+	}
+	DEBUG_PRINTF_MESSAGE(" pos: %d, compare: %d, pid: %d, event: 0x%02X\n", 
+				pos, 
+				events_timer_fifo_data[pos].compare, 
+				events_timer_fifo_data[pos].event.pid, 
+				events_timer_fifo_data[pos].event.event);
 }
 
 // hardware: ISR, or what else, This has to be ported to hardware.
@@ -92,7 +123,7 @@ static int8_t events_compare_times(uint32_t t1, uint32_t t2) {
 static void events_move_elements_in_timer_fifo_1pos_right(uint16_t from, uint16_t to) {
 	uint16_t pos, pos1;
 	for(pos  = from;pos != to;pos  = pos1) {
-		pos1 = fifo_dec_pos(pos, events_timer_fifo.size);
+		pos1 = fifo_prev_pos(pos, events_timer_fifo.size);
 		memcpy(&events_timer_fifo_data[pos], &events_timer_fifo_data[pos1], sizeof(events_timer_fifo_data[pos]));
 	}
 }
@@ -106,8 +137,8 @@ static int8_t ev_timer_hal_process(uint8_t event, void *data) {
 // - public functions ----------------------------------------------------------
 void events_init(void) {
 	// event queue
-	fifo_init(&ev_queue, (void *)ev_queue_data, cNB_OF_EVENTS_IN_QUEUE);
-	memset((uint8_t *)ev_queue_data, 0, sizeof(ev_queue_data));
+	fifo_init(&events_main_fifo, (void *)events_main_fifo_data, EVENTS_MAIN_FIFO_SIZE);
+	memset((uint8_t *)events_main_fifo_data, 0, sizeof(events_main_fifo_data));
 	// timing events
 	// vars
     ev_timer_pid = &ev_timer_proc.pid;
@@ -122,57 +153,58 @@ void events_init(void) {
 }
 
 uint8_t events_add_to_queue(event_t *ev) {
-	DEBUG_PRINTF_MESSAGE("ev_queue_write: (wr: %d, rd:%d, size: %d)",
-				ev_queue.wr,
-				ev_queue.rd,
-				ev_queue.size);
+	DEBUG_PRINTF_MESSAGE("events_main_fifo_write: (wr: %d, rd:%d, size: %d)",
+				events_main_fifo.wr,
+				events_main_fifo.rd,
+				events_main_fifo.size);
 	// sanity checks
 	if(ev == NULL) {
 		DEBUG_PRINTF_MESSAGE(" ev == NULL\n");
 		return false;
 	}
-	if(fifo_try_append(&ev_queue) == false) {
+	if(fifo_try_append(&events_main_fifo) == false) {
 		// cannot append
 		DEBUG_PRINTF_MESSAGE(" event queue is full\n");
 		return false;
 	}
-	memcpy((uint8_t *)&ev_queue_data[ev_queue.wr_proc], (uint8_t *)ev, sizeof(*ev));
-	fifo_finalize_append(&ev_queue);
+	memcpy((uint8_t *)&events_main_fifo_data[events_main_fifo.wr_proc], (uint8_t *)ev, sizeof(*ev));
+	fifo_finalize_append(&events_main_fifo);
 	DEBUG_PRINTF_MESSAGE(" event: pid: %d, event: %d, data: %p (wr: %d, rd:%d, size: %d)\n",
 				ev->pid, ev->event, ev->data,
-				ev_queue.wr,
-				ev_queue.rd,
-				ev_queue.size);
+				events_main_fifo.wr,
+				events_main_fifo.rd,
+				events_main_fifo.size);
+	events_print_event_queue();
 	return true;
 }
 
 uint8_t events_get_from_queue(event_t *ev) {
-	DEBUG_PRINTF_MESSAGE("ev_queue_read:  (wr: %d, rd:%d, size: %d)",
-				ev_queue.wr,
-				ev_queue.rd,
-				ev_queue.size);
+	DEBUG_PRINTF_MESSAGE("events_main_fifo_read:  (wr: %d, rd:%d, size: %d)",
+				events_main_fifo.wr,
+				events_main_fifo.rd,
+				events_main_fifo.size);
     // sanity checks
 	if(ev == NULL) {
 		DEBUG_PRINTF_MESSAGE(" ev == NULL\n");
 		return false;
 	}
-	if(fifo_try_get(&ev_queue) == false) {
+	if(fifo_try_get(&events_main_fifo) == false) {
 		// cannot append
 		DEBUG_PRINTF_MESSAGE(" event queue is empty\n");
 		return false;
 	}
-	memcpy((uint8_t *)ev, (uint8_t *)&ev_queue_data[ev_queue.rd_proc], sizeof(*ev));
-	fifo_finalize_get(&ev_queue);
+	memcpy((uint8_t *)ev, (uint8_t *)&events_main_fifo_data[events_main_fifo.rd_proc], sizeof(*ev));
+	fifo_finalize_get(&events_main_fifo);
 	DEBUG_PRINTF_MESSAGE(" event: pid: %d, event: %d, data: %p (wr: %d, rd:%d, size: %d)\n",
 				ev->pid, ev->event, ev->data,
-				ev_queue.wr,
-				ev_queue.rd,
-				ev_queue.size);
+				events_main_fifo.wr,
+				events_main_fifo.rd,
+				events_main_fifo.size);
 	return true;
 }
 
 uint8_t events_is_queue_empty(void) {
-    return fifo_is_empty(&ev_queue);
+    return fifo_is_empty(&events_main_fifo);
 }
 
 // - timing events -------------------------------------------------------------
@@ -224,7 +256,7 @@ int8_t events_add_single_timer_event(uint16_t timeout, uint8_t pid, uint8_t even
 		 * note: use wr_proc here, because fifo_try_append() was called to check if there is space left
 		 * fifo_finalize_append() will get called later
 		 */
-		for(pos = events_timer_fifo.rd; pos != events_timer_fifo.wr_proc; pos = fifo_inc_pos(pos, 1)) {
+		for(pos = events_timer_fifo.rd; pos != events_timer_fifo.wr_proc; pos = fifo_next_pos(pos, 1)) {
 			/* check compare values, current_compare(@pos) vs. new_compare
 			* < : current_compare(@pos) will be used 1st, nothing to do
 			* ==: current_compare(@pos) will also be used 1st, nothing to do
@@ -245,10 +277,12 @@ int8_t events_add_single_timer_event(uint16_t timeout, uint8_t pid, uint8_t even
 
     fifo_finalize_append(&events_timer_fifo);
 	DEBUG_PRINTF_MESSAGE(" event: pid: %d, event: %d, data: %p (wr: %d, rd:%d, size: %d)\n",
-				ev->pid, ev->event, ev->data,
-				ev_queue.wr,
-				ev_queue.rd,
-				ev_queue.size);
+				pid, event, data,
+				events_timer_fifo.wr,
+				events_timer_fifo.rd,
+				events_timer_fifo.size);
+
+	events_print_timer_events();
 
     restore_interrupt(sr);
 	return true;

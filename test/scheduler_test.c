@@ -3,8 +3,8 @@
  * 2024-09-28
  * scheduler https://github.com/mwuerms/mmschedule
  * testing scheduler functions
- * + compile: gcc test_scheduler.c ../fifo.c ../scheduler.c test.c -o test_scheduler.exe
- * + run: ./test_scheduler.exe
+ * + compile from main folder: gcc scheduler.c events.c fifo.c test/scheduler_test.c test/test.c -o test/scheduler_test
+ * + run from main folder: ./test/scheduler_test
  */
 #include <stdio.h>
 #include "test.h"
@@ -115,7 +115,7 @@ int8_t test01(void) {
 int8_t test02(void) {
     uint8_t test_nr;
     int8_t res, res_should;
-    printf(" + test02: scheduler start and run processes\n");
+    printf(" + test02: scheduler start processes\n");
 
     test_nr = 1;
     printf("   %02d: scheduler_start_process(%d)\n", test_nr, test01_pid);
@@ -136,17 +136,60 @@ int8_t test02(void) {
     if(res != res_should) {
         return TEST_FAILED;
     }
+    return TEST_SUCCESSFUL;
+}
 
-    test_nr++;
+int8_t test03(void) {
+    uint8_t test_nr;
+    int8_t res, res_should;
+    printf("\n\n + test03: scheduler run\n");
+
+    test_nr = 1;
+    test_run_count = 10;
     printf("   %02d: scheduler_run()\n", test_nr);
+    printf("    + test_run_count: %d\n", test_run_count);
     scheduler_run();
     return TEST_SUCCESSFUL;
 }
 
+int8_t test04(void) {
+    uint8_t test_nr, p, ev;
+    int8_t res, res_should;
+    printf(" + test03: scheduler_send_event()\n");
+
+    p = 1;
+    ev = 10;
+    for(test_nr = 1;test_nr < EVENTS_MAIN_FIFO_SIZE-1;test_nr++) {
+        ev++;
+        printf("   %02d: scheduler_send_event(%d, 0x%02X)\n", test_nr, p, ev);
+        res_should = true;
+        res = scheduler_send_event(p, ev, NULL);
+        printf("       should: %s\n", get_bool_string(res_should));
+        printf("       result: %s\n", get_bool_string(res));
+        if(res != res_should) {
+            return TEST_FAILED;
+        }
+    }
+    // from for test_nr++;
+    ev++;
+    printf("   %02d: scheduler_send_event(%d, 0x%02X), should be full now\n", test_nr, p, ev);
+    res_should = false;
+    res = scheduler_send_event(p, ev, NULL);
+    printf("       should: %s\n", get_bool_string(res_should));
+    printf("       result: %s\n", get_bool_string(res));
+    if(res != res_should) {
+        return TEST_FAILED;
+    }
+
+    return TEST_SUCCESSFUL;
+}
 int main(void) {
     printf("testing scheduler functions\n\n");
     test_eval_result(test01());
     test_eval_result(test02());
+    test_eval_result(test03()); // run()
+    test_eval_result(test04());
+    test_eval_result(test03()); // run()
 
     printf("\nall tests successfully done\n");
     return 0;

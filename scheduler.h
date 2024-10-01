@@ -15,7 +15,7 @@
 #include "events.h"
 
 /* - defines ---------------------------------------------------------------- */
-#define cNB_OF_PROCESSES         16 /// number of processes
+#define cNB_OF_PROCESSES (16) /// number of processes
 
 /* - typedefs --------------------------------------------------------------- */
 typedef int8_t (*process_func_t) (uint8_t event, void *data);

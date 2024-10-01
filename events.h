@@ -15,7 +15,7 @@
 #include "fifo.h"
 
 //- typedefs -------------------------------------------------------------------
-#define cNB_OF_EVENTS_IN_QUEUE   32 /// number of events in event queue
+#define EVENTS_MAIN_FIFO_SIZE (8) /// number of events in event queue
 typedef struct {
   void * data;
   uint8_t pid;
