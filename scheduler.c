@@ -8,7 +8,7 @@
 // - includes ------------------------------------------------------------------
 #define TEST_RUN
 
-#define DEBUG_PRINTF_ON
+//#define DEBUG_PRINTF_ON
 #include "debug_printf.h"
 
 #include "scheduler.h"
@@ -226,6 +226,15 @@ int8_t scheduler_is_evvent_main_fifo_empty(void) {
     return events_is_main_fifo_empty();
 }
 
+int8_t scheduler_start_event_timer(void) {
+	return events_start_timer(0);
+
+}
+
+int8_t scheduler_stop_event_timer(void) {
+	return events_stop_timer();
+}
+
 int8_t scheduler_add_timer_event(uint16_t timeout, uint8_t pid, uint8_t event, void *data) {
 	event_t ev;
 	int8_t ret;
@@ -254,12 +263,12 @@ int8_t scheduler_run(void) {
 			// ev_main_fifo_data is empty, execute the idle task
 			if(idle_process != NULL) {
 				ret = idle_process->process(0, NULL);
-			}
 #ifdef TEST_RUN
-			if(ret == 0) {
-				return (-1);
-			}
+				if(ret == 0) {
+					return (-1);
+				}
 #endif
+			}
 		}
 	}
 	return false;

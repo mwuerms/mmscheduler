@@ -14,7 +14,7 @@ int8_t testXY(void) {
 
 void test_eval_result(int8_t res) {
     if(res == TEST_SUCCESSFUL) {
-        printf("SUCESSFUL\n\n");
+        printf("SUCCESSFUL\n\n");
         // continue
     }
     else {

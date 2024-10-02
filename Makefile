@@ -29,9 +29,9 @@ endif
 
 RELEASEDIR = $(TARGET)-$(VERSION_STRING)
 
-SRC=mmscheduler.c\
+SRC=scheduler.c\
 fifo.c\
-main.c
+events.c
 
 OBJ = $(SRC:.c=.o)
 
@@ -45,6 +45,9 @@ $(TARGET): $(OBJ)
 
 #doc: 
 #        doxygen setup.dox
+
+%.o: %.c
+	$(CC) -c $(CFLAGS) $<
 
 clean:
 	rm -v $(OBJ) $(TARGET)

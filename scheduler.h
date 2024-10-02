@@ -92,6 +92,20 @@ int8_t scheduler_add_idle_process(process_t *p);
 int8_t scheduler_send_event(uint8_t pid, uint8_t event, void *data);
 
 /**
+ * start the event timer
+ * @return	status 	=true: OK, could add event to main_fifo
+ *					=false: error, could not add event to main_fifo
+ */
+int8_t scheduler_start_event_timer(void);
+
+/**
+ * stop the event timer
+ * @return	status 	=true: OK, could add event to main_fifo
+ *					=false: error, could not add event to main_fifo
+ */
+int8_t scheduler_stop_event_timer(void);
+
+/**
  * send an event timer to a process given by its PID
  * @param timeout after which to send
  * @param	pid		process identifier
