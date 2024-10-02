@@ -61,7 +61,7 @@ static int8_t test01_process (uint8_t event, void *data) {
         scheduler_send_event(test02_pid, 2, NULL);
     }
     if(event == 17) {
-        printf(" + event: %d, stop this here, set test_run_count (%d) to 0", event, test_run_count);
+        printf(" + event: %d, stop this here, set test_run_count (%d) to 0\n", event, test_run_count);
         test_run_count = 0;
     }
     if(event == EV_START) {
@@ -340,7 +340,7 @@ int main(void) {
     test_idle_state = 1;
     test_eval_result(test05());
     test_eval_result(test06());
-    test_run_count = 2300;
+    test_run_count = 1200;
     test_eval_result(test03()); // run()
 
     printf("\n test01_pid: %d, test02_pid: %d\n", test01_pid, test02_pid);

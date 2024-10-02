@@ -87,18 +87,32 @@ void events_print_timer_events(void) {
 static uint32_t ev_timer_CNT = 0;
 static uint32_t ev_timer_COMPARE = 0;
 
-static inline void event_timer_get_current_compare(void) {
-	if(fifo_try_get(&events_timer_fifo) == true) {
-		ev_timer_COMPARE = events_timer_fifo_data[events_timer_fifo.rd_proc].compare;
-	}
-	else {
-		ev_timer_COMPARE = 0;
+static inline void get_compare_from_timer_event_fifo(void) {
+	uint16_t n;
+	ev_timer_COMPARE = 0; // if none available
+	// find the 1st active timer interrupt
+	for(n = events_timer_fifo.size; n != 0; n --) {
+		if(fifo_try_get(&events_timer_fifo) == true) {
+			if((events_timer_fifo_data[events_timer_fifo.rd_proc].ctrl & EV_TIMER_CTRL_ACTIVE) == 0) {
+				// this timer event is not active, so skip this one
+				fifo_finalize_get(&events_timer_fifo);
+			}
+			else {
+				// this timer event is active, take this one
+				ev_timer_COMPARE = events_timer_fifo_data[events_timer_fifo.rd_proc].compare;
+				break;
+			}
+		}
+		else {
+			// no more timer events in fifo available, stop here
+			break;
+		}
 	}
 	DEBUG_PRINTF_MESSAGE(" current compare: %d\n", ev_timer_COMPARE);
 }
 
 static int8_t ev_timer_hal_process(uint8_t event, void *data) {
-	uint16_t sr;
+	uint16_t n, sr;
     ev_timer_CNT++;
 	printf("ev_timer_hal_process(ev: %d)\n", event);
 	printf("  CNT:     %d\n", ev_timer_CNT);
@@ -107,18 +121,28 @@ static int8_t ev_timer_hal_process(uint8_t event, void *data) {
 		lock_interrupt(sr);
 		printf("  COMPARE == CNT\n");
 
-		while(ev_timer_CNT == ev_timer_COMPARE) {
-
+		for(n = events_timer_fifo.size; n != 0; n --) {
+			// get the first timer event
 			if(fifo_try_get(&events_timer_fifo) == true) {
 				if(events_timer_fifo_data[events_timer_fifo.rd_proc].ctrl & EV_TIMER_CTRL_ACTIVE) {
+					// this timer event is active, does it macht?
 					if(events_timer_fifo_data[events_timer_fifo.rd_proc].compare == ev_timer_CNT) {
-						printf("  CNT: %d\n", ev_timer_CNT);
+						// match: send the timer event and set this timer event inactive
+						printf("  match at CNT: %d\n", ev_timer_CNT);
 						scheduler_send_event(events_timer_fifo_data[events_timer_fifo.rd_proc].event.pid,
 							events_timer_fifo_data[events_timer_fifo.rd_proc].event.event,
 							events_timer_fifo_data[events_timer_fifo.rd_proc].event.data);
+						// this timer event is done, set it inactive
+						events_timer_fifo_data[events_timer_fifo.rd_proc].ctrl &= ~EV_TIMER_CTRL_ACTIVE;
 						fifo_finalize_get(&events_timer_fifo);
-						event_timer_get_current_compare();
+						// now again check if there is yet an other timer event available
+						get_compare_from_timer_event_fifo();
 					}
+				}
+				else {
+					// this timer event was not active! get the next one, also do not compare
+					get_compare_from_timer_event_fifo();
+					break;
 				}
 			}
 		}
@@ -358,7 +382,7 @@ int8_t events_add_single_timer_event(uint16_t timeout, event_t *ev)  {
 
 	events_print_timer_events();
 	// get first compare value
-	event_timer_get_current_compare();
+	get_compare_from_timer_event_fifo();
 
     restore_interrupt(sr);
 	return true;
