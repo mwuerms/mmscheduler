@@ -17,16 +17,16 @@
 //- typedefs -------------------------------------------------------------------
 typedef struct {
   void * data;
-  uint8_t pid;
+  uint8_t tid;
   uint8_t event;
 } event_t;
 
 // - events --------------------------------------------------------------------
-// events from 0 ... 127 are for user purpose
+// events from 0 ... 250 are for user purpose
 // predefined events
-#define EV_START   128
-#define EV_STOP    129
-#define EV_POLL    130
+#define EV_START   250
+#define EV_STOP    251
+#define EV_POLL    252
 
 // - public functions ----------------------------------------------------------
 

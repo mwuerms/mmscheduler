@@ -6,8 +6,6 @@
  */
 
 // - includes ------------------------------------------------------------------
-#define TEST_RUN
-
 //#define DEBUG_PRINTF_ON
 #include "debug_printf.h"
 
@@ -15,27 +13,26 @@
 #include <string.h>
 
 // - private variables ---------------------------------------------------------
-static task_t *idle_task;
 static task_t *task_list[NB_OF_TASKS];	// =NULL: unused, free
 static uint8_t task_count;
-static uint8_t pid_count; /// pid == 0 should not exist
+static uint8_t tid_count; /// tid == 0 should not exist
 
 // - private (static) functions-------------------------------------------------
 
 /**
- * find the task in the list by given pid
+ * find the task in the list by given tid
  * find only first occurence
- * @param   pid of task to find
- * @reutn   pointert to task_t   =NULL: could not find task with given pid
+ * @param   tid of task to find
+ * @reutn   pointert to task_t   =NULL: could not find task with given tid
  *                                  else: valid pointer
  */
-static task_t *scheduler_find_task_by_pid(uint8_t pid) {
+static task_t *scheduler_find_task_by_tid(uint8_t tid) {
     uint8_t n;
-	DEBUG_PRINTF_MESSAGE("scheduler_find_task_by_pid(%d)\n", pid);
+	DEBUG_PRINTF_MESSAGE("scheduler_find_task_by_tid(%d)\n", tid);
     for(n = 0; n < NB_OF_TASKS; n++) {
         if(task_list[n] != NULL) {
-            if(task_list[n]->pid == pid) {
-                // found task with same pid
+            if(task_list[n]->tid == tid) {
+                // found task with same tid
 				DEBUG_PRINTF_MESSAGE(" + found: %p\n", task_list[n]);
                 return task_list[n];
             }
@@ -47,26 +44,26 @@ static task_t *scheduler_find_task_by_pid(uint8_t pid) {
 }
 
 /**
- * remove a task from task_list given by pid
- * @param   pid of task to remove
+ * remove a task from task_list given by tid
+ * @param   tid of task to remove
  * @return  status =1: successfully removed task from task_list
  *                 =0: could not remove task from task_list
  * /
-static int8_t task_RemoveFromtaskList(uint8_t pid);*/
+static int8_t task_RemoveFromtaskList(uint8_t tid);*/
 
 /**
- * execute a task given by its PID
- * @param	pid		task identifier
+ * execute a task given by its TID
+ * @param	tid		task identifier
  * @param	event	event for the task to execute
  * @param	data	additional data to task (if unused = NULL)
  * @return	status 	=true: OK, could execute task
  *					=false: error, could not execute task
  */
-static int8_t scheduler_exec_task(uint8_t pid, uint8_t event, void *data) {
+static int8_t scheduler_exec_task(uint8_t tid, uint8_t event, void *data) {
     task_t *p;
-	DEBUG_PRINTF_MESSAGE("scheduler_exec_task(pid: %d, event: %d)\n", pid, event);
+	DEBUG_PRINTF_MESSAGE("scheduler_exec_task(tid: %d, event: %d)\n", tid, event);
     // check if task exists
-    if((p = scheduler_find_task_by_pid(pid)) == NULL) {
+    if((p = scheduler_find_task_by_tid(tid)) == NULL) {
         // error, task does not exist
         return false;
     }
@@ -82,8 +79,8 @@ static int8_t scheduler_exec_task(uint8_t pid, uint8_t event, void *data) {
         return false;
     }
 
-    DEBUG_PRINTF_MESSAGE("execute task \"%s\" (pid: %d, event: %d, data: %p)\n",
-        p->name, p->pid, event, data);
+    DEBUG_PRINTF_MESSAGE("execute task \"%s\" (tid: %d, event: %d, data: %p)\n",
+        p->name, p->tid, event, data);
 
 	// OK, execute task
 	p->state = TASK_STATE_RUNNING;
@@ -103,8 +100,7 @@ static int8_t scheduler_exec_task(uint8_t pid, uint8_t event, void *data) {
 void scheduler_init(void) {
 	// vars
 	task_count = 0;
-	pid_count = 0;  // 1st time: ++
-	idle_task = NULL;
+	tid_count = 0;  // 1st time: ++
 	memset((uint8_t *)task_list, 0, sizeof(task_list));
 	events_init();
 }
@@ -141,19 +137,19 @@ int8_t scheduler_add_task(task_t *p) {
     // found empty space, add task to task_list
     task_list[n] = p;
     task_count++;
-    if(pid_count == 0) {
-        pid_count = 1;
+    if(tid_count == 0) {
+        tid_count = 1;
     }
     else {
-        pid_count++;
+        tid_count++;
     }
     // success, added task to task_list
-    p->pid = pid_count;
+    p->tid = tid_count;
     p->state = TASK_STATE_NONE;
 
-    DEBUG_PRINTF_MESSAGE("task_Add: %s, pid: %d\n",
+    DEBUG_PRINTF_MESSAGE("task_Add: %s, tid: %d\n",
     		p->name,
-			p->pid);
+			p->tid);
     return true;
 }
 
@@ -162,10 +158,10 @@ int8_t scheduler_remove_task(task_t *p) {
     return false;
 }
 
-int8_t scheduler_start_task(uint8_t pid) {
+int8_t scheduler_start_task(uint8_t tid) {
     task_t *p;
     // check if task exists
-    if((p = scheduler_find_task_by_pid(pid)) == NULL) {
+    if((p = scheduler_find_task_by_tid(tid)) == NULL) {
         // error, task does not exist
         return false;
     }
@@ -177,45 +173,23 @@ int8_t scheduler_start_task(uint8_t pid) {
 
 	// start task
 	p->state = TASK_STATE_ACTIVE;
-	DEBUG_PRINTF_MESSAGE("task_Start: %s, pid: %d, state: %d\n",
+	DEBUG_PRINTF_MESSAGE("task_Start: %s, tid: %d, state: %d\n",
 			p->name,
-			p->pid,
+			p->tid,
 			p->state);
-	return scheduler_send_event(pid, EV_START, NULL);
+	return scheduler_send_event(tid, EV_START, NULL);
 }
 
-int8_t scheduler_stop_task(uint8_t pid) {
+int8_t scheduler_stop_task(uint8_t tid) {
 	// not implemented yet
     return false;
 }
 
-int8_t scheduler_add_idle_task(task_t *p) {
-	// sanity tests
-	if(p == NULL) {
-		// error, no task
-		return false;
-	}
-	if(p->task == NULL) {
-		// error, no task_function defined
-		return false;
-	}
-
-	// success, add task to idle_task
-    idle_task = p;
-	p->pid = TASK_PID_IDLE;
-	p->state = TASK_STATE_NONE; // does not matter for idle_task
-    DEBUG_PRINTF_MESSAGE("scheduler_add_idle_task: %s, pid: %d\n",
-    			p->name,
-				p->pid);
-
-    return true;
-}
-
-int8_t scheduler_send_event(uint8_t pid, uint8_t event, void *data) {
+int8_t scheduler_send_event(uint8_t tid, uint8_t event, void *data) {
 	event_t ev;
 	int8_t ret;
 
-	ev.pid = pid;
+	ev.tid = tid;
 	ev.event = event;
 	ev.data = data;
 	ret = events_add_to_main_fifo(&ev);
@@ -235,12 +209,12 @@ int8_t scheduler_stop_event_timer(void) {
 	return events_stop_timer();
 }
 
-int8_t scheduler_add_timer_event(uint16_t timeout, uint8_t pid, uint8_t event, void *data) {
+int8_t scheduler_add_timer_event(uint16_t timeout, uint8_t tid, uint8_t event, void *data) {
 	event_t ev;
 	int8_t ret;
 	uint8_t sr;
 
-	ev.pid = pid;
+	ev.tid = tid;
 	ev.event = event;
 	ev.data = data;
 	lock_interrupt(sr);
@@ -257,18 +231,10 @@ int8_t scheduler_run(void) {
 		// get next event
 		if((ret = events_get_from_main_fifo(&ev)) == true) {
 			// got a valid event, send it to the task
-			scheduler_exec_task(ev.pid, ev.event, ev.data);
+			scheduler_exec_task(ev.tid, ev.event, ev.data);
 		}
 		else {
-			// ev_main_fifo_data is empty, execute the idle task
-			if(idle_task != NULL) {
-				ret = idle_task->task(0, NULL);
-#ifdef TEST_RUN
-				if(ret == 0) {
-					return (-1);
-				}
-#endif
-			}
+			sleep_wait_for_events();
 		}
 	}
 	return false;

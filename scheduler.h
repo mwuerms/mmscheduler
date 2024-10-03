@@ -13,6 +13,7 @@
 #include <stdbool.h>
 #include "arch.h"
 #include "events.h"
+#include "sleep.h"
 
 /* - defines ---------------------------------------------------------------- */
 #define NB_OF_TASKS (16) /// number of tasks
@@ -23,11 +24,10 @@ typedef int8_t (*task_func_t) (uint8_t event, void *data);
 typedef struct {
   task_func_t  task;
   char *name;
-  uint8_t pid;    /// PID: task identifier
+  uint8_t tid;    /// TID: task identifier
   uint8_t state;  /// state of the task: none=0, started, running
 } task_t;
-// .pid
-#define TASK_PID_IDLE (0)   // the idle task has pid = 0
+// .tid
 
 // .state
 #define TASK_STATE_NONE (0)
@@ -51,7 +51,7 @@ int8_t scheduler_add_task(task_t *p);
 
 /**
  * removes an existing  task
- * @param	pid		task identifier
+ * @param	tid		task identifier
  * @return	status 	=true: OK, could remove task from task_list
  *					=false: error, could not remove task to task_list
  */
@@ -59,19 +59,19 @@ int8_t scheduler_remove_task(task_t *p);
 
 /**
  * start an existing task
- * @param	pid		task identifier
+ * @param	tid		task identifier
  * @return	status 	=true: OK, could start task
  *					=false: error, could not start task
  */
-int8_t scheduler_start_task(uint8_t pid);
+int8_t scheduler_start_task(uint8_t tid);
 
 /**
  * stop an existing task
- * @param	pid		task identifier
+ * @param	tid		task identifier
  * @return	status 	=true: OK, could stop task
  *					=false: error, could not stop task
  */
-int8_t scheduler_stop_task(uint8_t pid);
+int8_t scheduler_stop_task(uint8_t tid);
 
 /**
  * add the idle task, this task does not need to be started
@@ -82,14 +82,14 @@ int8_t scheduler_stop_task(uint8_t pid);
 int8_t scheduler_add_idle_task(task_t *p);
 
 /**
- * send an event to a task given by its PID
- * @param	pid		task identifier
+ * send an event to a task given by its TID
+ * @param	tid		task identifier
  * @param	event	event for the task to execute
  * @param	data	additional data to task (if unused = NULL)
  * @return	status 	=true: OK, could add event to main_fifo
  *					=false: error, could not add event to main_fifo
  */
-int8_t scheduler_send_event(uint8_t pid, uint8_t event, void *data);
+int8_t scheduler_send_event(uint8_t tid, uint8_t event, void *data);
 
 /**
  * start the event timer
@@ -106,15 +106,15 @@ int8_t scheduler_start_event_timer(void);
 int8_t scheduler_stop_event_timer(void);
 
 /**
- * send an event timer to a task given by its PID
+ * send an event timer to a task given by its TID
  * @param timeout after which to send
- * @param	pid		task identifier
+ * @param	tid		task identifier
  * @param	event	event for the task to execute
  * @param	data	additional data to task (if unused = NULL)
  * @return	status 	=true: OK, could add event to main_fifo
  *					=false: error, could not add event to main_fifo
  */
-int8_t scheduler_add_timer_event(uint16_t timeout, uint8_t pid, uint8_t event, void *data);
+int8_t scheduler_add_timer_event(uint16_t timeout, uint8_t tid, uint8_t event, void *data);
 
 /**
  * check if event main_fifo is empty
