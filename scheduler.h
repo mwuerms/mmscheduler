@@ -15,24 +15,24 @@
 #include "events.h"
 
 /* - defines ---------------------------------------------------------------- */
-#define cNB_OF_PROCESSES (16) /// number of processes
+#define NB_OF_TASKS (16) /// number of tasks
 
 /* - typedefs --------------------------------------------------------------- */
-typedef int8_t (*process_func_t) (uint8_t event, void *data);
+typedef int8_t (*task_func_t) (uint8_t event, void *data);
 
 typedef struct {
-  process_func_t  process;
+  task_func_t  task;
   char *name;
-  uint8_t pid;    /// PID: process identifier
-  uint8_t state;  /// state of the process: none=0, started, running
-} process_t;
+  uint8_t pid;    /// PID: task identifier
+  uint8_t state;  /// state of the task: none=0, started, running
+} task_t;
 // .pid
-#define cPROCESS_PID_IDLE       0   // the idle process has pid = 0
+#define TASK_PID_IDLE (0)   // the idle task has pid = 0
 
 // .state
-#define cPROCESS_STATE_NONE     0
-#define cPROCESS_STATE_ACTIVE   1
-#define cPROCESS_STATE_RUNNING  2
+#define TASK_STATE_NONE (0)
+#define TASK_STATE_ACTIVE (1)
+#define TASK_STATE_RUNNING (2)
 
 // - public functions ----------------------------------------------------------
 
@@ -42,50 +42,50 @@ typedef struct {
 void scheduler_init(void);
 
 /**
- * add a new process
- * @param	p	pointer to process context
- * @return	status 	=true: OK, could add process to process_list
- *					=false: error, could not add process to process_list
+ * add a new task
+ * @param	p	pointer to task context
+ * @return	status 	=true: OK, could add task to task_list
+ *					=false: error, could not add task to task_list
  */
-int8_t scheduler_add_process(process_t *p);
+int8_t scheduler_add_task(task_t *p);
 
 /**
- * removes an existing  process
- * @param	pid		process identifier
- * @return	status 	=true: OK, could remove process from process_list
- *					=false: error, could not remove process to process_list
+ * removes an existing  task
+ * @param	pid		task identifier
+ * @return	status 	=true: OK, could remove task from task_list
+ *					=false: error, could not remove task to task_list
  */
-int8_t scheduler_remove_process(process_t *p);
+int8_t scheduler_remove_task(task_t *p);
 
 /**
- * start an existing process
- * @param	pid		process identifier
- * @return	status 	=true: OK, could start process
- *					=false: error, could not start process
+ * start an existing task
+ * @param	pid		task identifier
+ * @return	status 	=true: OK, could start task
+ *					=false: error, could not start task
  */
-int8_t scheduler_start_process(uint8_t pid);
+int8_t scheduler_start_task(uint8_t pid);
 
 /**
- * stop an existing process
- * @param	pid		process identifier
- * @return	status 	=true: OK, could stop process
- *					=false: error, could not stop process
+ * stop an existing task
+ * @param	pid		task identifier
+ * @return	status 	=true: OK, could stop task
+ *					=false: error, could not stop task
  */
-int8_t scheduler_stop_process(uint8_t pid);
+int8_t scheduler_stop_task(uint8_t pid);
 
 /**
- * add the idle process, this process does not need to be started
- * @param	p	pointer to process context
- * @return	status 	=true: OK, could add process to process_list
- *					=false: error, could not add process to process_list
+ * add the idle task, this task does not need to be started
+ * @param	p	pointer to task context
+ * @return	status 	=true: OK, could add task to task_list
+ *					=false: error, could not add task to task_list
  */
-int8_t scheduler_add_idle_process(process_t *p);
+int8_t scheduler_add_idle_task(task_t *p);
 
 /**
- * send an event to a process given by its PID
- * @param	pid		process identifier
- * @param	event	event for the process to execute
- * @param	data	additional data to process (if unused = NULL)
+ * send an event to a task given by its PID
+ * @param	pid		task identifier
+ * @param	event	event for the task to execute
+ * @param	data	additional data to task (if unused = NULL)
  * @return	status 	=true: OK, could add event to main_fifo
  *					=false: error, could not add event to main_fifo
  */
@@ -106,11 +106,11 @@ int8_t scheduler_start_event_timer(void);
 int8_t scheduler_stop_event_timer(void);
 
 /**
- * send an event timer to a process given by its PID
+ * send an event timer to a task given by its PID
  * @param timeout after which to send
- * @param	pid		process identifier
- * @param	event	event for the process to execute
- * @param	data	additional data to process (if unused = NULL)
+ * @param	pid		task identifier
+ * @param	event	event for the task to execute
+ * @param	data	additional data to task (if unused = NULL)
  * @return	status 	=true: OK, could add event to main_fifo
  *					=false: error, could not add event to main_fifo
  */
@@ -123,7 +123,7 @@ int8_t scheduler_add_timer_event(uint16_t timeout, uint8_t pid, uint8_t event, v
 int8_t scheduler_is_event_main_fifo_empty(void);
 
 /**
- * run the process scheduler
+ * run the task scheduler
  * note: this function should never return (endless loop)
  * @return	=false: error
  */

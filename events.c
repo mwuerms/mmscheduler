@@ -35,7 +35,7 @@ typedef struct {
 static fifo_t events_timer_fifo;
 static ev_tim_event_t events_timer_fifo_data[EV_TIMER_NB_EVENTS];
 
-static process_t ev_timer_proc;
+static task_t ev_timer_proc;
 static char ev_timer_name[] = "EV_TIMER_HAL";
 
 // - private function ----------------------------------------------------------
@@ -80,8 +80,8 @@ void events_print_timer_events(void) {
 // - timer callback, ISR -------------------------------------------------------
 // hardware: ISR, or what else, This has to be ported to hardware.
 /**
- * the event timer process
- * process the next event to send
+ * the event timer task
+ * task the next event to send
  */
 #include <stdio.h>
 static uint32_t ev_timer_CNT = 0;
@@ -111,10 +111,10 @@ static inline void get_compare_from_timer_event_fifo(void) {
 	DEBUG_PRINTF_MESSAGE(" current compare: %d\n", ev_timer_COMPARE);
 }
 
-static int8_t ev_timer_hal_process(uint8_t event, void *data) {
+static int8_t ev_timer_hal_task(uint8_t event, void *data) {
 	uint16_t n, sr;
     ev_timer_CNT++;
-	printf("ev_timer_hal_process(ev: %d)\n", event);
+	printf("ev_timer_hal_task(ev: %d)\n", event);
 	printf("  CNT:     %d\n", ev_timer_CNT);
 	printf("  COMPARE: %d\n", ev_timer_COMPARE);
 	if(ev_timer_CNT == ev_timer_COMPARE) {
@@ -212,8 +212,8 @@ void events_init(void) {
 
     ev_timer_CNT = 0;
     ev_timer_proc.name = ev_timer_name;
-    ev_timer_proc.process = ev_timer_hal_process;
-    scheduler_add_process(&ev_timer_proc);
+    ev_timer_proc.task = ev_timer_hal_task;
+    scheduler_add_task(&ev_timer_proc);
 }
 
 uint8_t events_add_to_main_fifo(event_t *ev) {
@@ -278,11 +278,11 @@ uint8_t events_is_main_fifo_empty(void) {
 
 int8_t events_start_timer(uint16_t periode) {
 	// start the timer
-    return scheduler_start_process(ev_timer_proc.pid);
+    return scheduler_start_task(ev_timer_proc.pid);
 }
 
 int8_t events_stop_timer(void) {
-    return scheduler_stop_process(ev_timer_proc.pid);
+    return scheduler_stop_task(ev_timer_proc.pid);
 }
 
 static inline uint32_t events_calc_compare(uint32_t now, uint16_t timeout) {

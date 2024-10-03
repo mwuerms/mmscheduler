@@ -19,11 +19,11 @@ char *get_bool_string(uint8_t b) {
 
 static uint8_t test01_pid, test02_pid;
 
-// run until test_idle_process() returns 0
+// run until test_idle_task() returns 0
 static uint32_t test_run_count = 10;
 static uint8_t test_idle_state = 0;
-static int8_t test_idle_process (uint8_t event, void *data) {
-    printf("called test_idle_process(%d, %p)\n", event, data);
+static int8_t test_idle_task (uint8_t event, void *data) {
+    printf("called test_idle_task(%d, %p)\n", event, data);
     printf(" + test_run_count: %d\n", test_run_count);
     printf(" + test_idle_state: %d\n", test_idle_state);
     if(test_idle_state == 0) {
@@ -52,12 +52,12 @@ static int8_t test_idle_process (uint8_t event, void *data) {
     }
     return 0;
 }
-static process_t idle_proc = {.process = test_idle_process, .name = "IDLE"};
+static task_t idle_proc = {.task = test_idle_task, .name = "IDLE"};
 
-static int8_t test01_process (uint8_t event, void *data) {
-    printf("called test01_process(%d, %p)\n", event, data);
+static int8_t test01_task (uint8_t event, void *data) {
+    printf("called test01_task(%d, %p)\n", event, data);
     if(event == 1) {
-        printf(" + event: %d, send event to test02_process\n", event);
+        printf(" + event: %d, send event to test02_task\n", event);
         scheduler_send_event(test02_pid, 2, NULL);
     }
     if(event == 17) {
@@ -65,14 +65,14 @@ static int8_t test01_process (uint8_t event, void *data) {
         test_run_count = 0;
     }
     if(event == EV_START) {
-        printf(" + START test01_process\n");
+        printf(" + START test01_task\n");
     }
     return 1;
 }
-static process_t test01_proc = {.process = test01_process, .name = "TEST01_PROC"};
+static task_t test01_proc = {.task = test01_task, .name = "TEST01_PROC"};
 
-static int8_t test02_process (uint8_t event, void *data) {
-    printf("called test02_process(%d, %p)\n", event, data);
+static int8_t test02_task (uint8_t event, void *data) {
+    printf("called test02_task(%d, %p)\n", event, data);
     if(event == 2) {
         printf(" + event: %d\n", event);
     }
@@ -83,11 +83,11 @@ static int8_t test02_process (uint8_t event, void *data) {
         printf(" + event: %d, from event_timer, nothing to do\n", event);
     }
     if(event == EV_START) {
-        printf(" + START test02_process\n");
+        printf(" + START test02_task\n");
     }
     return 1;
 }
-static process_t test02_proc = {.process = test02_process, .name = "TEST02_PROC"};
+static task_t test02_proc = {.task = test02_task, .name = "TEST02_PROC"};
 
 
 // - test cases ----------------------------------------------------------------
@@ -95,15 +95,15 @@ int8_t test01(void) {
     uint8_t test_nr;
     int8_t res, res_should;
 
-    printf(" + test01: scheduler functions\n   initialise and add processes\n");
+    printf(" + test01: scheduler functions\n   initialise and add taskes\n");
     test_nr = 1;
     printf("   %02d: scheduler_init()\n", test_nr);
     scheduler_init();
 
     test_nr++;
-    printf("   %02d: scheduler_add_idle_process(%s)\n", test_nr, idle_proc.name);
+    printf("   %02d: scheduler_add_idle_task(%s)\n", test_nr, idle_proc.name);
     res_should = true;
-    res = scheduler_add_idle_process(&idle_proc);
+    res = scheduler_add_idle_task(&idle_proc);
     printf("       should: %s\n", get_bool_string(res_should));
     printf("       result: %s\n", get_bool_string(res));
     if(res != res_should) {
@@ -111,9 +111,9 @@ int8_t test01(void) {
     }
     
     test_nr++;
-    printf("   %02d: scheduler_add_process(%s)\n", test_nr, test01_proc.name);
+    printf("   %02d: scheduler_add_task(%s)\n", test_nr, test01_proc.name);
     res_should = true;
-    res = scheduler_add_process(&test01_proc);
+    res = scheduler_add_task(&test01_proc);
     printf("       should: %s\n", get_bool_string(res_should));
     printf("       result: %s\n", get_bool_string(res));
     if(res != res_should) {
@@ -123,9 +123,9 @@ int8_t test01(void) {
     printf("       pid:    %d\n", test01_pid);
 
     test_nr++;
-    printf("   %02d: scheduler_add_process(%s)\n", test_nr, test02_proc.name);
+    printf("   %02d: scheduler_add_task(%s)\n", test_nr, test02_proc.name);
     res_should = true;
-    res = scheduler_add_process(&test02_proc);
+    res = scheduler_add_task(&test02_proc);
     printf("       should: %s\n", get_bool_string(res_should));
     printf("       result: %s\n", get_bool_string(res));
     if(res != res_should) {
@@ -140,12 +140,12 @@ int8_t test01(void) {
 int8_t test02(void) {
     uint8_t test_nr;
     int8_t res, res_should;
-    printf(" + test02: scheduler start processes\n");
+    printf(" + test02: scheduler start taskes\n");
 
     test_nr = 1;
-    printf("   %02d: scheduler_start_process(%d)\n", test_nr, test01_pid);
+    printf("   %02d: scheduler_start_task(%d)\n", test_nr, test01_pid);
     res_should = true;
-    res = scheduler_start_process(test01_pid);
+    res = scheduler_start_task(test01_pid);
     printf("       should: %s\n", get_bool_string(res_should));
     printf("       result: %s\n", get_bool_string(res));
     if(res != res_should) {
@@ -153,9 +153,9 @@ int8_t test02(void) {
     }
 
     test_nr++;
-    printf("   %02d: scheduler_start_process(%d)\n", test_nr, test02_pid);
+    printf("   %02d: scheduler_start_task(%d)\n", test_nr, test02_pid);
     res_should = true;
-    res = scheduler_start_process(test02_pid);
+    res = scheduler_start_task(test02_pid);
     printf("       should: %s\n", get_bool_string(res_should));
     printf("       result: %s\n", get_bool_string(res));
     if(res != res_should) {
