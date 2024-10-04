@@ -103,6 +103,7 @@ void scheduler_init(void) {
 	tid_count = 0;  // 1st time: ++
 	memset((uint8_t *)task_list, 0, sizeof(task_list));
 	events_init();
+	power_mode_init();
 }
 
 int8_t scheduler_add_task(task_t *p) {
@@ -234,7 +235,7 @@ int8_t scheduler_run(void) {
 			scheduler_exec_task(ev.tid, ev.event, ev.data);
 		}
 		else {
-			sleep_wait_for_events();
+			power_mode_sleep();
 		}
 	}
 	return false;

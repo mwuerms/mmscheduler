@@ -13,7 +13,7 @@
 #include <stdbool.h>
 #include "arch.h"
 #include "events.h"
-#include "sleep.h"
+#include "power_mode.h"
 
 /* - defines ---------------------------------------------------------------- */
 #define NB_OF_TASKS (16) /// number of tasks

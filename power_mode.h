@@ -1,14 +1,14 @@
 /**
  * Martin Egli
  * 2024-10-03
- * all needed functions to use sleep modes
+ * all needed functions to use power modes
  * coop scheduler for mcu
  * 
  * this file needs adaption to current mcu
  */
 
-#ifndef _SLEEP_H_
-#define _SLEEP_H_
+#ifndef _POWER_MODE_H_
+#define _POWER_MODE_H_
 
 //- includes -------------------------------------------------------------------
 #include <stdint.h>
@@ -16,34 +16,34 @@
 #include "arch.h"
 
 //- defines --------------------------------------------------------------------
-// define sleep modes accordning to mcu
-#define NB_OF_SLEEP_MODES (3)
-#define SLEEP_MODE_NONE (0)
-#define SLEEP_MODE_1 (1)
-#define SLEEP_MODE_2 (2)
+// define power modes accordning to mcu
+#define NB_OF_POWER_MODES (3)
+#define POWER_MODE_NONE (0)
+#define POWER_MODE_1 (1)
+#define POWER_MODE_2 (2)
 
 // - public functions ----------------------------------------------------------
 
 /**
  * initialize the events
  */
-void sleep_init(void);
+void power_mode_init(void);
 
 /**
- * request a certain sleep mode
+ * request a certain power mode
  * @param mode  to request
  */
-void sleep_request_mode(uint8_t mode);
+void power_mode_request(uint8_t mode);
 
 /**
- * release a certain sleep mode
+ * release a certain power mode
  * @param mode  to release
  */
-void sleep_release_mode(uint8_t mode);
+void power_mode_release(uint8_t mode);
 
 /**
  * wait here as long there is no event to process
  */
-void sleep_wait_for_events(void);
+void power_mode_sleep(void);
 
-#endif // _SLEEP_H_
+#endif // _POWER_MODE_H_
